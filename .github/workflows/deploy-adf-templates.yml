@@ -1,0 +1,60 @@
+name: Deploy ARM Templates to Azure Data Factory
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-to-adf:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Azure CLI
+      uses: azure/CLI@v1
+      with:
+        azcliversion: latest
+
+    - name: Download ARM templates from Azure Blob Storage
+      run: |
+        az storage blob download \
+          --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} \
+          --account-key ${{ secrets.AZURE_STORAGE_KEY }} \
+          --container-name ${{ secrets.AZURE_CONTAINER_NAME }} \
+          --name linkedTemplates/masterTemplate.json \
+          --file ./masterTemplate.json
+
+        az storage blob download \
+          --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} \
+          --account-key ${{ secrets.AZURE_STORAGE_KEY }} \
+          --container-name ${{ secrets.AZURE_CONTAINER_NAME }} \
+          --name linkedTemplates/masterTemplateParameters.json \
+          --file ./masterTemplateParameters.json
+      env:
+        AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
+        AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
+        AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+
+    - name: Authenticate with Azure
+      run: |
+        az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} -p ${{ secrets.AZURE_CLIENT_SECRET }} --tenant ${{ secrets.AZURE_TENANT_ID }}
+        az account set --subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+    - name: Deploy ARM templates to Azure Data Factory
+      run: |
+        az deployment group create \
+          --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+          --template-file ./masterTemplate.json \
+          --parameters @./masterTemplateParameters.json \
+          --parameters factoryName=${{ secrets.AZURE_DATA_FACTORY }}
+      env:
+        AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+        AZURE_DATA_FACTORY: ${{ secrets.AZURE_DATA_FACTORY }}
