@@ -18,8 +18,22 @@ jobs:
         sudo apt-get update
         curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 
+    - name: List blobs in the container
+      run: |
+        echo "Listing blobs in container: ${{ secrets.AZURE_CONTAINER_NAME }}"
+        az storage blob list \
+          --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} \
+          --account-key ${{ secrets.AZURE_STORAGE_KEY }} \
+          --container-name ${{ secrets.AZURE_CONTAINER_NAME }} \
+          --output table
+      env:
+        AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
+        AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
+        AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+
     - name: Download ARM templates from Azure Blob Storage
       run: |
+        echo "Downloading masterTemplate.json"
         az storage blob download \
           --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} \
           --account-key ${{ secrets.AZURE_STORAGE_KEY }} \
@@ -27,6 +41,7 @@ jobs:
           --name linkedTemplates/masterTemplate.json \
           --file ./masterTemplate.json
 
+        echo "Downloading masterTemplateParameters.json"
         az storage blob download \
           --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} \
           --account-key ${{ secrets.AZURE_STORAGE_KEY }} \
